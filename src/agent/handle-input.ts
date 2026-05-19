@@ -2,7 +2,18 @@ import type { AppConfig } from "../config.js";
 import type { DatabaseClient } from "../db/client.js";
 import { runAgent } from "../llm/client.js";
 import { createToolRegistry } from "../tools/registry.js";
-import { createIotApprovalGrant, IOT_APPROVAL_GRANT_MS, turnOffIotDevice, turnOnIotDevice } from "../tools/iot.js";
+import {
+  createIotApprovalGrant,
+  createRecurringIotCommand,
+  describeIotDeviceCommand,
+  describeIotRecurringCommand,
+  executeIotDeviceCommand,
+  IOT_APPROVAL_GRANT_MS,
+  IOT_DEVICE_COMMAND_ACTION,
+  IOT_RECURRING_COMMAND_ACTION,
+  type IotDeviceCommandPayload,
+  type IotRecurringCommandPayload,
+} from "../tools/iot.js";
 import { appendApprovedMemory, MEMORY_APPEND_ACTION, MEMORY_REPLACE_ACTION, replaceApprovedMemory } from "../tools/memory.js";
 import type { AgentInput } from "../inputs/types.js";
 import { loadStaticContext } from "./context.js";
@@ -78,8 +89,8 @@ async function handlePendingApproval(
   }
 
   const pending = (await db.listPendingApprovals()).find((approval) =>
-    approval.action === "iot.turn_off_device" ||
-    approval.action === "iot.turn_on_device" ||
+    approval.action === IOT_DEVICE_COMMAND_ACTION ||
+    approval.action === IOT_RECURRING_COMMAND_ACTION ||
     approval.action === MEMORY_APPEND_ACTION ||
     approval.action === MEMORY_REPLACE_ACTION,
   );
@@ -91,26 +102,52 @@ async function handlePendingApproval(
     return handleMemoryApproval(config, db, pending, decision);
   }
 
-  const payload = JSON.parse(pending.payload) as { deviceId: string };
-  const commandName = pending.action === "iot.turn_on_device" ? "включаю" : "выключаю";
-  const commandDone = pending.action === "iot.turn_on_device" ? "включение" : "выключение";
+  if (pending.action === IOT_RECURRING_COMMAND_ACTION) {
+    return handleRecurringCommandApproval(config, db, pending, decision);
+  }
+
+  const payload = JSON.parse(pending.payload) as IotDeviceCommandPayload;
+  const description = describeIotDeviceCommand(payload);
 
   if (decision === "reject") {
     await db.updateApprovalState({ id: pending.id, state: "rejected" });
-    return `Ок, не ${commandName} ${payload.deviceId}.`;
+    return `Ок, не выполняю: ${description}.`;
   }
 
-  const result = pending.action === "iot.turn_on_device"
-    ? await turnOnIotDevice(config, payload.deviceId)
-    : await turnOffIotDevice(config, payload.deviceId);
+  const result = await executeIotDeviceCommand(config, payload);
   await db.updateApprovalState({ id: pending.id, state: result.statusCode >= 200 && result.statusCode < 300 ? "approved" : "expired" });
 
   if (result.statusCode >= 200 && result.statusCode < 300) {
     await createIotApprovalGrant(db);
-    return `Команда на ${commandDone} ${payload.deviceId} отправлена. iot-hub ответил HTTP ${result.statusCode}. Следующие IoT on/off команды можно выполнить без повторного подтверждения в течение ${Math.round(IOT_APPROVAL_GRANT_MS / 1000)} секунд.`;
+    return `${description} отправлена. iot-hub ответил HTTP ${result.statusCode}. Следующие IoT команды можно выполнить без повторного подтверждения в течение ${Math.round(IOT_APPROVAL_GRANT_MS / 1000)} секунд.`;
   }
 
-  return `Не смог выполнить ${commandDone} ${payload.deviceId}. iot-hub ответил HTTP ${result.statusCode}: ${result.body}`;
+  return `Не смог выполнить: ${description}. iot-hub ответил HTTP ${result.statusCode}: ${result.body}`;
+}
+
+async function handleRecurringCommandApproval(
+  config: AppConfig,
+  db: DatabaseClient,
+  pending: { id: string; payload: string },
+  decision: "approve" | "reject",
+): Promise<string> {
+  const payload = JSON.parse(pending.payload) as IotRecurringCommandPayload;
+  const description = describeIotRecurringCommand(payload);
+
+  if (decision === "reject") {
+    await db.updateApprovalState({ id: pending.id, state: "rejected" });
+    return `Ок, не создаю: ${description}.`;
+  }
+
+  const result = await createRecurringIotCommand(config, payload);
+  await db.updateApprovalState({ id: pending.id, state: result.statusCode >= 200 && result.statusCode < 300 ? "approved" : "expired" });
+
+  if (result.statusCode >= 200 && result.statusCode < 300) {
+    await createIotApprovalGrant(db);
+    return `${description} создана. iot-hub ответил HTTP ${result.statusCode}. Следующие IoT команды можно выполнить без повторного подтверждения в течение ${Math.round(IOT_APPROVAL_GRANT_MS / 1000)} секунд.`;
+  }
+
+  return `Не смог создать: ${description}. iot-hub ответил HTTP ${result.statusCode}: ${result.body}`;
 }
 
 async function handleMemoryApproval(
@@ -175,6 +212,8 @@ function buildHelpAnswer(text: string): string | undefined {
     "- `проверь GitHub Actions для Enigmadie/iot-dashboard`",
     "- `покажи устройства IoT`",
     "- `выключи plug_plant` -> я попрошу подтверждение",
+    "- `открой окно` или `поставь window_opener на 40%` -> я попрошу подтверждение",
+    "- `открывай окно на 40% в 09:00` -> я попрошу подтверждение для recurring IoT команды",
     "- `запомни: plug_plant это розетка растения` -> я предложу запись в memory и попрошу подтверждение",
     "- `plug_plant больше не розетка растения, теперь это розетка увлажнителя` -> я должен предложить исправление старой memory-записи",
     "Write/deploy/destructive actions требуют подтверждения. Current facts из интернета без live source не выдумываю.",
