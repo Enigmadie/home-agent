@@ -79,7 +79,7 @@ export function createIotTools(
       inputSchema: deviceSchema,
       risk: "write",
       db,
-      execute: async ({ deviceId }) => requestDeviceCommand(config, db, { deviceId, command: "turn_off" }),
+      execute: async ({ deviceId }) => requestIotDeviceCommand(config, db, { deviceId, command: "turn_off" }),
     }),
     iot_request_turn_on_device: createLoggedTool({
       name: "iot_request_turn_on_device",
@@ -88,7 +88,7 @@ export function createIotTools(
       inputSchema: deviceSchema,
       risk: "write",
       db,
-      execute: async ({ deviceId }) => requestDeviceCommand(config, db, { deviceId, command: "turn_on" }),
+      execute: async ({ deviceId }) => requestIotDeviceCommand(config, db, { deviceId, command: "turn_on" }),
     }),
     iot_request_window_command: createLoggedTool({
       name: "iot_request_window_command",
@@ -97,7 +97,7 @@ export function createIotTools(
       inputSchema: iotCommandSchema,
       risk: "write",
       db,
-      execute: async (payload) => requestDeviceCommand(config, db, payload),
+      execute: async (payload) => requestIotDeviceCommand(config, db, payload),
     }),
     iot_request_create_recurring_command: createLoggedTool({
       name: "iot_request_create_recurring_command",
@@ -111,7 +111,7 @@ export function createIotTools(
   };
 }
 
-async function requestDeviceCommand(
+export async function requestIotDeviceCommand(
   config: AppConfig,
   db: DatabaseClient,
   payload: IotDeviceCommandPayload,

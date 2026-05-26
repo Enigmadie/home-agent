@@ -16,6 +16,7 @@ import {
 } from "../tools/iot.js";
 import { appendApprovedMemory, MEMORY_APPEND_ACTION, MEMORY_REPLACE_ACTION, replaceApprovedMemory } from "../tools/memory.js";
 import type { AgentInput } from "../inputs/types.js";
+import { handleFastIotCommand } from "./fast-iot.js";
 import { loadStaticContext } from "./context.js";
 
 export async function handleAgentInput(
@@ -55,6 +56,19 @@ export async function handleAgentInput(
     });
 
     return approvalAnswer;
+  }
+
+  const fastIotAnswer = await handleFastIotCommand(config, db, input.text);
+  if (fastIotAnswer) {
+    await db.insertMessage({
+      source: input.source,
+      userId: input.userId,
+      chatId: input.chatId,
+      role: "assistant",
+      content: fastIotAnswer,
+    });
+
+    return fastIotAnswer;
   }
 
   const tools = createToolRegistry(config, db);
