@@ -1,22 +1,6 @@
-import type { AppConfig } from "../config.js";
-import type { DatabaseClient } from "../db/client.js";
-import { requestIotDeviceCommand, type IotDeviceCommandPayload } from "../tools/iot.js";
+import type { IotDeviceCommandPayload } from "../tools/iot.js";
 
 const DEVICE_ID_RE = /^[a-zA-Z0-9_.:-]+$/;
-
-export async function handleFastIotCommand(
-  config: AppConfig,
-  db: DatabaseClient,
-  text: string,
-): Promise<string | undefined> {
-  const payload = parseFastIotCommand(text);
-  if (!payload) {
-    return undefined;
-  }
-
-  const result = await requestIotDeviceCommand(config, db, payload);
-  return formatIotResult(result);
-}
 
 export function parseFastIotCommand(text: string): IotDeviceCommandPayload | undefined {
   const normalized = normalize(text);
@@ -98,7 +82,7 @@ function isScheduledIntent(normalized: string): boolean {
 }
 
 function mentionsWindow(normalized: string): boolean {
-  return /\bwindow_opener\b/.test(normalized) || normalized.includes("окн");
+  return /\bwindow_opener\b/.test(normalized) || /\bwindow\b/.test(normalized) || /окн|окошк/.test(normalized);
 }
 
 function hasAny(value: string, needles: string[]): boolean {
@@ -106,13 +90,5 @@ function hasAny(value: string, needles: string[]): boolean {
 }
 
 function normalize(text: string): string {
-  return text.trim().toLowerCase().replace(/\s+/g, " ");
-}
-
-function formatIotResult(result: unknown): string {
-  if (typeof result === "object" && result !== null && "message" in result && typeof result.message === "string") {
-    return result.message;
-  }
-
-  return JSON.stringify(result);
+  return text.trim().toLowerCase().replace(/ё/g, "е").replace(/\s+/g, " ");
 }

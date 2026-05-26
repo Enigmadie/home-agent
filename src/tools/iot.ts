@@ -47,6 +47,14 @@ type IotHubResponse = {
   body: string;
 };
 
+export type IotDeviceCommandRequestResult = IotDeviceCommandPayload & {
+  executed: boolean;
+  approvalId?: string;
+  statusCode?: number;
+  body?: string;
+  message: string;
+};
+
 export type IotDeviceCommandPayload = z.infer<typeof iotCommandSchema>;
 export type IotRecurringCommandPayload = z.infer<typeof recurringCommandSchema>;
 
@@ -115,11 +123,12 @@ export async function requestIotDeviceCommand(
   config: AppConfig,
   db: DatabaseClient,
   payload: IotDeviceCommandPayload,
-): Promise<unknown> {
+): Promise<IotDeviceCommandRequestResult> {
   validateIotDeviceCommand(payload);
 
   if (await hasActiveIotApprovalGrant(db)) {
     const result = await executeIotDeviceCommand(config, payload);
+    console.log(`pi-agent iot executed command=${payload.command} device=${payload.deviceId} status=${result.statusCode}`);
     return {
       ...payload,
       executed: true,
@@ -135,6 +144,7 @@ export async function requestIotDeviceCommand(
     action: IOT_DEVICE_COMMAND_ACTION,
     payload: JSON.stringify(payload),
   });
+  console.log(`pi-agent approval created action=${IOT_DEVICE_COMMAND_ACTION} id=${id} command=${payload.command} device=${payload.deviceId}`);
 
   return {
     approvalId: id,

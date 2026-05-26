@@ -8,6 +8,14 @@ export async function runReadOnlyCommand(
   args: string[],
   options?: { cwd?: string; timeoutMs?: number },
 ): Promise<{ stdout: string; stderr: string }> {
+  return runCommand(command, args, options);
+}
+
+export async function runCommand(
+  command: string,
+  args: string[],
+  options?: { cwd?: string; timeoutMs?: number },
+): Promise<{ stdout: string; stderr: string }> {
   const result = await execFileAsync(command, args, {
     cwd: options?.cwd,
     timeout: options?.timeoutMs ?? 20_000,
