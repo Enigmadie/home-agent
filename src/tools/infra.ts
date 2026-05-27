@@ -8,7 +8,7 @@ import { runCommand, runReadOnlyCommand } from "./shell.js";
 export const INFRA_COMPOSE_RESTART_ACTION = "infra.compose_restart";
 
 const stackSchema = z.object({
-  stack: z.enum(["core", "iot", "observability"]).describe("Compose stack name"),
+  stack: z.enum(["ingress", "iot", "observability"]).describe("Pi edge Compose stack name"),
 });
 
 const systemdSchema = z.object({
@@ -31,16 +31,16 @@ const composeServiceRestartSchema = z.object({
 
 export type ComposeServiceRestartPayload = z.infer<typeof composeServiceRestartSchema>;
 
-function composeFile(stack: "core" | "iot" | "observability"): string[] {
-  if (stack === "core") {
-    return [];
+function composeFile(stack: "ingress" | "iot" | "observability"): string[] {
+  if (stack === "ingress") {
+    return ["-f", "nodes/pi/stacks/ingress/compose.yml"];
   }
 
   if (stack === "iot") {
-    return ["-f", "compose.iot.yml"];
+    return ["-f", "nodes/pi/stacks/iot/compose.yml"];
   }
 
-  return ["-f", "compose.observability.yml"];
+  return ["-f", "nodes/pi/stacks/observability/compose.yml"];
 }
 
 export function createInfraTools(
@@ -64,7 +64,7 @@ export function createInfraTools(
       db,
       execute: async ({ stack }) =>
         runReadOnlyCommand("docker", ["compose", ...composeFile(stack), "ps", "--format", "json"], {
-          cwd: `${config.EDGE_INFRA_PATH}/docker`,
+          cwd: config.EDGE_INFRA_PATH,
         }),
     }),
     infra_systemd_status: createLoggedTool({
@@ -160,7 +160,7 @@ function runComposeServiceRestart(
       "-o",
       "StrictHostKeyChecking=accept-new",
       config.EDGE_SSH_TARGET,
-      `cd ${config.EDGE_INFRA_PATH}/docker && docker compose -f compose.iot.yml restart ${payload.service}`,
+      `cd ${config.EDGE_INFRA_PATH}/nodes/pi/stacks/iot && docker compose -p docker restart ${payload.service}`,
     ],
     { timeoutMs: 60_000 },
   );
