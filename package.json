@@ -12,19 +12,22 @@
     "db:migrate": "drizzle-kit migrate"
   },
   "dependencies": {
-    "@ai-sdk/openai": "latest",
-    "ai": "latest",
-    "better-sqlite3": "latest",
-    "dotenv": "latest",
-    "drizzle-orm": "latest",
-    "grammy": "latest",
-    "zod": "latest"
+    "@ai-sdk/openai": "3.0.63",
+    "ai": "6.0.182",
+    "better-sqlite3": "12.10.0",
+    "dotenv": "17.4.2",
+    "drizzle-orm": "0.45.2",
+    "grammy": "1.42.0",
+    "zod": "4.4.3"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "latest",
-    "@types/node": "latest",
-    "drizzle-kit": "latest",
-    "tsx": "latest",
-    "typescript": "latest"
+    "@types/better-sqlite3": "7.6.13",
+    "@types/node": "25.8.0",
+    "drizzle-kit": "0.31.10",
+    "tsx": "4.22.0",
+    "typescript": "6.0.3"
+  },
+  "overrides": {
+    "esbuild": "0.25.12"
   }
 }
