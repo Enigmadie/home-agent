@@ -1,6 +1,6 @@
 .PHONY: install dev build start typecheck check db-generate db-migrate sync-notes clean
 
-OBSIDIAN_PI5_SOURCE ?= $(HOME)/Documents/Obsidian Vault/Projects/Pi 5 infrastructure
+OBSIDIAN_PI5_SOURCE ?= $(HOME)/_dev/wiki/Projects/Pi 5 infrastructure
 PI_NOTES_PROJECTS_DIR ?= /home/godo/notes/obsidian-vault/Projects
 
 install:
